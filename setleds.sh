@@ -1,10 +1,14 @@
 #!/bin/bash
 
 ## Here are my 4 disk paths in sysfs
-HD0="/sys/class/scsi_host/host0/device/target0:0:0/0:0:0:0"
-HD1="/sys/class/scsi_host/host0/device/target0:0:1/0:0:1:0"
-HD2="/sys/class/scsi_host/host1/device/target1:0:0/1:0:0:0"
-HD3="/sys/class/scsi_host/host1/device/target1:0:1/1:0:1:0"
+#HD0="/sys/class/scsi_host/host0/device/target0:0:0/0:0:0:0"
+#HD1="/sys/class/scsi_host/host0/device/target0:0:1/0:0:1:0"
+#HD2="/sys/class/scsi_host/host1/device/target1:0:0/1:0:0:0"
+#HD3="/sys/class/scsi_host/host1/device/target1:0:1/1:0:1:0"
+HD0="/sys/class/scsi_host/host0/device/subsystem/devices/target2:0:0/2:0:0:0"
+HD1="/sys/class/scsi_host/host0/device/subsystem/devices/target2:0:1/2:0:1:0"
+HD2="/sys/class/scsi_host/host1/device/subsystem/devices/target1:0:0/1:0:0:0"
+HD3="/sys/class/scsi_host/host1/device/subsystem/devices/target1:0:1/1:0:1:0"
 
 ## Blue LEDs in sysfs
 LEDB0="/sys/class/leds/hpex47x:blue:hdd0/brightness"

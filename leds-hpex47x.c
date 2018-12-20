@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/platform_device.h>
@@ -32,7 +33,7 @@ MODULE_DESCRIPTION("HP MediaSmart Server EX47x HDD Bay LED Driver");
 MODULE_LICENSE("GPL");
 
 #define HPEX_PORT 0x1064
-#define HPEX_CTRL 0xff7f
+#define HPEX_CTRL 0xffff
 
 #define HPEX_LEDCOUNT 8
 
@@ -60,29 +61,19 @@ struct hpex_drvdata {
 	struct timer_list	timer;
 };
 
-static void hpex47x_led_update(unsigned long data)
-{
-	int i;
-	struct hpex_drvdata *p = (struct hpex_drvdata *)data;
-	struct hpex_led *led = p->led;
-	
-	u16 pbits = HPEX_CTRL;
-	
-	for(i=0; i<HPEX_LEDCOUNT; i++) {
-		if((led[i].value>>5) > HPEX_FRAME) pbits &= led[i].bits;
-	}
-	
-	HPEX_FRAME = (HPEX_FRAME + 1) & 0x7;
-
-	outw(pbits, HPEX_PORT);
-
-	mod_timer(&p->timer, jiffies + 1);
-}
-
 static void hpex47x_led_set(struct led_classdev *led_cdev, enum led_brightness value)
 {
 	struct hpex_led *p = to_hpex_led(led_cdev);
+	u16 pbits = HPEX_CTRL;
+
+	pbits = inw(HPEX_PORT);
+//	printk(KERN_ERR PFX "led_set : p.value : %#08X name : %s  bits : %#08X  inw : %#08X \n",p->value,p->led_cdev.name,p->bits, pbits);
+
 	p->value = value;
+	if (value == 0) { pbits &= p->bits; } else { pbits |= ~p->bits; };
+//	printk(KERN_ERR PFX "led_set : p.value : %#08X name : %s                outw : %#08X \n",p->value,p->led_cdev.name,pbits);
+	outw(pbits, HPEX_PORT);
+
 }
 
 static struct led_type hpex47x_hdd_led[HPEX_LEDCOUNT] = {
@@ -90,6 +81,7 @@ static struct led_type hpex47x_hdd_led[HPEX_LEDCOUNT] = {
 		.name			= "hpex47x:blue:hdd0",
 		.handler		= hpex47x_led_set,
 		.bits			= ~0x0001,
+		.default_trigger	= "disk-activity",
 	}, {
 		.name			= "hpex47x:blue:hdd1",
 		.handler		= hpex47x_led_set,
@@ -118,15 +110,16 @@ static struct led_type hpex47x_hdd_led[HPEX_LEDCOUNT] = {
 		.name			= "hpex47x:red:hdd3",
 		.handler		= hpex47x_led_set,
 		.bits			= ~0x0400,
-		.default_trigger	= "heartbeat",
 	}
 };
 
-static int __devinit hpex47x_led_probe(struct platform_device *pdev)
+static int hpex47x_led_probe(struct platform_device *pdev)
 {
 	struct hpex_drvdata *p;
 	struct led_type *types = hpex47x_hdd_led;
 	int i, err = -EINVAL;
+
+	printk(KERN_ERR PFX "led_probe\n");
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
@@ -152,12 +145,7 @@ static int __devinit hpex47x_led_probe(struct platform_device *pdev)
 		}
 	}
 
-	init_timer(&p->timer);
-	p->timer.function = hpex47x_led_update;
-	p->timer.data = (unsigned long) p;
 	dev_set_drvdata(&pdev->dev, p);
-
-	mod_timer(&p->timer, jiffies + 1);
 
 	err = 0;
 out:
@@ -169,7 +157,7 @@ out_unregister_led_cdevs:
 	goto out;
 }
 
-static int __devexit hpex47x_led_remove(struct platform_device *pdev)
+static int hpex47x_led_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -179,12 +167,7 @@ static int __devexit hpex47x_led_remove(struct platform_device *pdev)
 		led_classdev_unregister(&p->led[i].led_cdev);
 	}
 
-	del_timer_sync(&p->timer);
-
 	kfree(p);
-
-	// Turn off all leds
-	outw(HPEX_CTRL, HPEX_PORT);
 
 	return 0;
 }
@@ -196,7 +179,7 @@ MODULE_ALIAS("platform:hpex47x-led");
 
 static struct platform_driver hpex47x_led_driver = {
 	.probe		= hpex47x_led_probe,
-	.remove		= __devexit_p(hpex47x_led_remove),
+	.remove		= hpex47x_led_remove,
 	.driver		= {
 		.name		= DRVNAME,
 		.owner		= THIS_MODULE,
