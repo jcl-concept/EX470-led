@@ -70,7 +70,7 @@ static void hpex47x_led_set(struct led_classdev *led_cdev, enum led_brightness v
 //	printk(KERN_ERR PFX "led_set : p.value : %#08X name : %s  bits : %#08X  inw : %#08X \n",p->value,p->led_cdev.name,p->bits, pbits);
 
 	p->value = value;
-	if (value == 0) { pbits &= p->bits; } else { pbits |= ~p->bits; };
+	if (value != 0) { pbits &= p->bits; } else { pbits |= ~p->bits; };
 //	printk(KERN_ERR PFX "led_set : p.value : %#08X name : %s                outw : %#08X \n",p->value,p->led_cdev.name,pbits);
 	outw(pbits, HPEX_PORT);
 
@@ -121,6 +121,10 @@ static int hpex47x_led_probe(struct platform_device *pdev)
 
 	printk(KERN_ERR PFX "led_probe\n");
 
+        // Turn off all leds
+	printk(KERN_ERR PFX "Turn off all leds\n");
+        outw(HPEX_CTRL, HPEX_PORT);
+
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p) {
 		printk(KERN_ERR PFX "Could not allocate struct hpex_drvdata\n");
@@ -133,7 +137,7 @@ static int hpex47x_led_probe(struct platform_device *pdev)
 		p->led[i].index = i;
 		p->led[i].bits = types[i].bits;
 		lp->name = types[i].name;
-		lp->brightness = LED_FULL;
+		lp->brightness = LED_OFF;
 		lp->brightness_set = types[i].handler;
 		lp->default_trigger = types[i].default_trigger;
 
@@ -168,6 +172,9 @@ static int hpex47x_led_remove(struct platform_device *pdev)
 	}
 
 	kfree(p);
+
+        // Turn off all leds
+        outw(HPEX_CTRL, HPEX_PORT);
 
 	return 0;
 }
